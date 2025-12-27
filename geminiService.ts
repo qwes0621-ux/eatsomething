@@ -6,25 +6,30 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 /**
  * 根據使用者抽中的類別，搜尋附近 5 公里內的具體餐廳，並提供深度推薦資訊
- * 使用 gemini-2.5-flash 以支援 Google Maps Grounding 工具
  */
 export const getNearbyRecommendation = async (categoryName: string, lat: number, lng: number) => {
   try {
     const prompt = `你是一位專業的午餐顧問，正在為「台灣人壽（台壽）」的夥伴推薦午餐。
-    請在我的位置附近 5 公里內，推薦 3 間屬於「${categoryName}」類別的餐廳。
+    請在我的位置附近 5 公里內，推薦 3 間真實存在且評價優良的「${categoryName}」類別餐廳。
     
-    【重要指令】：
-    - 若附近優質店家較少，請務必擴大範圍並推薦評價較普通但距離可接受的店家作為備案，不可回傳空結果。
-    - 對於每間餐廳，請務必提供：
-      1. 餐廳名稱與完整地址。
-      2. 綜合評分與評價內容（即使評價較低也請註明其特色）。
-      3. 深度推薦說明（價格水平、CP 值、星座喜愛）。
-      4. 【外送資訊分析】：請分析這家店大約多少錢可以外送（根據外送平台慣例或該店規則估計起送金額與運費）。
+    【輸出規範】：請嚴格依照以下結構輸出，每間餐廳之間用 "---" 分隔：
     
-    請以條列格式回答，口吻親切且貼近辦公室夥伴需求。`;
+    ### [店名]
+    價位：[$, $$, 或 $$$]
+    簡介：[限 20 字以內，描述特色]
+    熱評：
+    - [最新評論1]
+    - [最新評論2]
+    - [最新評論3]
+    ---
+    
+    【指令要求】：
+    - 「簡介」絕對不能超過 20 個繁體中文字。
+    - 「熱評」請擷取 Google Maps 上的真實評論重點。
+    - 確保推薦的店家地點正確且適合商務夥伴用餐。`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash", // 修正：Maps Grounding 僅支援 Gemini 2.5 系列模型
+      model: "gemini-2.5-flash", 
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
@@ -42,7 +47,7 @@ export const getNearbyRecommendation = async (categoryName: string, lat: number,
     const text = response.text || "";
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     
-    // 提取地圖連結
+    // 提取地圖連結與名稱對應
     const links = chunks
       .filter((chunk: any) => chunk.maps?.uri)
       .map((chunk: any) => ({
@@ -70,7 +75,7 @@ export const getAIRecommendation = async (history: string[]) => {
 
     const prompt = `你是專門為「台壽夥伴」服務的專業午餐顧問。根據夥伴的歷史紀錄，從以下類別中推薦今天的午餐：${categoriesList}。
     ${historyText}
-    請從列表中選出一個類別，並提供充滿活力的推薦理由（例如：吃點好的補充能量，下午會議更有精神！），以及建議的三個具體餐點。`;
+    請從列表中選出一個類別，並提供充滿活力的推薦理由，以及建議的三個具體餐點。`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -80,12 +85,11 @@ export const getAIRecommendation = async (history: string[]) => {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            recommendedCategory: { type: Type.STRING, description: '推薦的午餐類別名稱' },
-            reason: { type: Type.STRING, description: '推薦原因' },
+            recommendedCategory: { type: Type.STRING },
+            reason: { type: Type.STRING },
             suggestions: {
               type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: '三個建議的具體餐點'
+              items: { type: Type.STRING }
             }
           },
           required: ['recommendedCategory', 'reason', 'suggestions']
