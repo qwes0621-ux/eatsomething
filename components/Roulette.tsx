@@ -9,6 +9,7 @@ interface RouletteProps {
   setIsSpinning: (val: boolean) => void;
   userLocation: {lat: number, lng: number} | null;
   onRequestLocation: () => void;
+  isRequestingLocation: boolean;
 }
 
 const Roulette: React.FC<RouletteProps> = ({ 
@@ -16,14 +17,15 @@ const Roulette: React.FC<RouletteProps> = ({
   isSpinning, 
   setIsSpinning,
   userLocation,
-  onRequestLocation
+  onRequestLocation,
+  isRequestingLocation
 }) => {
   const [rotation, setRotation] = useState(0);
   const segments = CATEGORIES.length;
   const degreesPerSegment = 360 / segments;
 
   const handleButtonClick = () => {
-    if (isSpinning) return;
+    if (isSpinning || isRequestingLocation) return;
 
     // 若尚未取得定位，先請求授權
     if (!userLocation) {
@@ -107,9 +109,9 @@ const Roulette: React.FC<RouletteProps> = ({
 
       <button
         onClick={handleButtonClick}
-        disabled={isSpinning}
-        className={`px-8 py-4 rounded-2xl text-lg font-black text-white shadow-[0_10px_20px_rgba(249,115,22,0.3)] transform transition-all active:scale-95 active:translate-y-1 min-w-[240px] ${
-          isSpinning 
+        disabled={isSpinning || isRequestingLocation}
+        className={`px-8 py-4 rounded-2xl text-lg font-black text-white shadow-[0_10px_20px_rgba(249,115,22,0.3)] transform transition-all active:scale-95 active:translate-y-1 min-w-[260px] ${
+          isSpinning || isRequestingLocation
             ? 'bg-gray-300 cursor-not-allowed grayscale' 
             : !userLocation 
               ? 'bg-blue-600 hover:bg-blue-700 shadow-[0_10px_20px_rgba(37,99,235,0.3)]'
@@ -119,8 +121,13 @@ const Roulette: React.FC<RouletteProps> = ({
         <span className="flex items-center justify-center gap-2">
           {isSpinning ? (
             <>🎲 命運轉動中...</>
+          ) : isRequestingLocation ? (
+            <span className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              取得定位中...
+            </span>
           ) : !userLocation ? (
-            <>📍 授權定位以開始</>
+            <>📍 點擊授權定位</>
           ) : (
             <>🔥 開始轉盤</>
           )}
@@ -128,8 +135,9 @@ const Roulette: React.FC<RouletteProps> = ({
       </button>
       
       {!isSpinning && !userLocation && (
-        <p className="text-[10px] text-gray-400 mt-4 font-bold uppercase tracking-wider">
-          授權定位後我們才能為您搜尋 5km 內的美味
+        <p className="text-[11px] text-gray-500 mt-5 font-bold text-center leading-relaxed">
+          🔒 定位服務僅用於搜尋附近 5km 餐廳<br/>
+          請點擊按鈕開啟權限以繼續
         </p>
       )}
     </div>

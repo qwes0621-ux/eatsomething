@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Screen, Category } from './types';
 import { CATEGORIES } from './constants';
 import Roulette from './components/Roulette';
 import ResultCard from './components/ResultCard';
+import LocationGuide from './components/LocationGuide';
 import { getAIRecommendation, getNearbyRecommendation } from './geminiService';
 
 const App: React.FC = () => {
@@ -19,6 +20,8 @@ const App: React.FC = () => {
   // 使用者定位狀態
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   // 收藏清單狀態
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -30,11 +33,14 @@ const App: React.FC = () => {
     localStorage.setItem('lunchgo_favorites', JSON.stringify(favorites));
   }, [favorites]);
 
-  const requestLocation = () => {
+  const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationError("您的瀏覽器不支援定位功能。");
       return;
     }
+
+    setIsRequestingLocation(true);
+    setLocationError(null);
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -43,13 +49,28 @@ const App: React.FC = () => {
           lng: position.coords.longitude
         });
         setLocationError(null);
+        setIsRequestingLocation(false);
+        setShowGuide(false);
       },
       (error) => {
         console.error("Geolocation error:", error);
-        setLocationError("需要定位權限才能為您搜尋附近餐廳。請開啟權限後重試。");
-      }
+        setIsRequestingLocation(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationError("您拒絕了定位授權。為了精準推薦 5km 內的台壽夥伴美食，請在瀏覽器設定中開啟定位權限後重試。");
+        } else {
+          setLocationError("定位取得失敗，請檢查網路或 GPS 訊號後重試。");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  };
+  }, []);
+
+  // 組件載入時自動請求定位
+  useEffect(() => {
+    if (currentScreen === 'HOME' && !userLocation) {
+      requestLocation();
+    }
+  }, [currentScreen, userLocation, requestLocation]);
 
   const toggleFavorite = (categoryId: string) => {
     setFavorites(prev => 
@@ -103,9 +124,34 @@ const App: React.FC = () => {
               <div className="text-center mb-10 px-6">
                 <h2 className="text-xl font-black text-gray-800">辛苦了！夥伴們中午吃好點</h2>
                 <p className="text-gray-500 text-sm mt-1">轉動輪盤，讓命運決定今天的能量來源！</p>
+                
                 {locationError && (
-                  <div className="mt-3 p-2 bg-red-50 text-red-500 text-xs rounded-lg border border-red-100 animate-pulse">
-                    ⚠️ {locationError}
+                  <div className="mt-4 p-4 bg-red-50 text-red-700 text-xs rounded-2xl border border-red-100 flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2 font-bold leading-relaxed">
+                      <span className="text-lg">📍</span> {locationError}
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={requestLocation}
+                        className="px-4 py-2 bg-red-600 text-white font-black rounded-full shadow-md active:scale-95 transition"
+                      >
+                        重新授權定位
+                      </button>
+                      <button 
+                        onClick={() => setShowGuide(!showGuide)}
+                        className="px-4 py-2 bg-white text-gray-600 border border-gray-200 font-bold rounded-full shadow-sm active:scale-95 transition"
+                      >
+                        {showGuide ? "關閉說明" : "教我如何開啟"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {showGuide && <LocationGuide />}
+                
+                {isRequestingLocation && !userLocation && (
+                  <div className="mt-4 p-3 bg-blue-50 text-blue-600 text-xs rounded-2xl border border-blue-100 animate-pulse font-bold">
+                    🔍 正在定位您的位置...
                   </div>
                 )}
               </div>
@@ -116,6 +162,7 @@ const App: React.FC = () => {
                 setIsSpinning={setIsSpinning}
                 userLocation={userLocation}
                 onRequestLocation={requestLocation}
+                isRequestingLocation={isRequestingLocation}
               />
 
               {history.length > 0 && (
