@@ -5,32 +5,36 @@ import { CATEGORIES } from "./constants";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 /**
- * 根據類別搜尋 10 間餐廳：3 間精選（含評論）+ 7 間備選（高評價清單）
+ * 根據使用者抽中的類別，搜尋附近 5 公里內的具體餐廳
+ * 要求總共 10 間：3 精選 + 7 備選
  */
 export const getNearbyRecommendation = async (categoryName: string, lat: number, lng: number) => {
   try {
-    const prompt = `你是一位專業的午餐顧問，正在為「台灣人壽（台壽）」的夥伴推薦午餐。
-    請在我的位置附近 5 公里內，推薦 10 間真實存在的「${categoryName}」類別餐廳。
+    const prompt = `你是一位專為「台壽夥伴（台灣人壽）」服務的專業午餐顧問。
+    請在夥伴位置附近 5 公里內，推薦 10 間真實存在的「${categoryName}」餐廳。
     
-    【輸出規範】：請嚴格依照以下結構輸出：
+    【分配比例】：
+    - 前 3 間為「精選推薦」（最推薦、品質最高）。
+    - 後 7 間為「備選名單」（不錯的替代方案）。
+
+    【輸出格式規範】：請務必依照以下範例結構輸出，每間餐廳間用 "---" 分隔：
     
-    ===精選推薦===
     ### [店名]
+    類型：[精選 或 備選]
+    星級：[數字，例如 4.2]
     價位：[$, $$, 或 $$$]
-    簡介：[限 20 字以內，描述特色]
-    熱評：
-    - [最新評論1]
-    - [最新評論2]
-    - [最新評論3]
-    --- (每間精選以此分隔)
+    簡介：[限 20 字以內，描述該店最吸引人的特色]
+    評論：
+    - [最新評論重點1]
+    - [最新評論重點2]
+    - [最新評論重點3]
+    ---
     
-    ===備選名單===
-    * [店名] | 價位：[$, $$, 或 $$$] | 評價：[例如 4.5]
-    (列出 7 間高評價備選店家)
-    
-    【重要指令】：
-    - 精選餐廳的「簡介」絕對不能超過 20 個繁體中文字。
-    - 確保所有推薦的店家皆真實存在且能透過 Google Maps 找到。`;
+    【關鍵指令】：
+    - 總共必須列出 10 間，不得少於 10 間。
+    - 星級請提供 Google Maps 上的真實平均分數。
+    - 簡介部分「絕對不得超過 20 個繁體中文字」。
+    - 使用 googleMaps 工具搜尋目前營業中且真實的地點。`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash", 
@@ -50,8 +54,6 @@ export const getNearbyRecommendation = async (categoryName: string, lat: number,
 
     const text = response.text || "";
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    
-    // 提取地圖連結
     const links = chunks
       .filter((chunk: any) => chunk.maps?.uri)
       .map((chunk: any) => ({
@@ -59,10 +61,7 @@ export const getNearbyRecommendation = async (categoryName: string, lat: number,
         uri: chunk.maps.uri
       }));
 
-    return {
-      text,
-      links
-    };
+    return { text, links };
   } catch (error) {
     console.error("Maps Grounding Error:", error);
     return null;
@@ -74,12 +73,12 @@ export const getNearbyRecommendation = async (categoryName: string, lat: number,
  */
 export const getAIRecommendation = async (history: string[]) => {
   try {
-    const historyText = history.length > 0 ? `夥伴最近吃了：${history.join('、')}` : "夥伴目前沒有紀錄。";
+    const historyText = history.length > 0 ? `台壽夥伴最近吃了：${history.join('、')}` : "夥伴尚無紀錄。";
     const categoriesList = CATEGORIES.map(c => c.name).join('、');
 
-    const prompt = `你是專門為「台壽夥伴」服務的專業午餐顧問。根據夥伴的歷史紀錄，從以下類別中推薦今天的午餐：${categoriesList}。
+    const prompt = `你是專為「台壽夥伴」設計的專業午餐顧問。根據夥伴歷史紀錄推薦一個類別：${categoriesList}。
     ${historyText}
-    請選出一個類別並提供推薦理由及三個具體餐點。`;
+    請選出一個類別，並提供充滿活力且體恤夥伴辛苦的推薦理由與建議的三個菜點。`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',

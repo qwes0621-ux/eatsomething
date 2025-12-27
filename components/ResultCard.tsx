@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Category } from '../types';
 import { ZODIAC_SIGNS } from '../constants';
 
@@ -23,63 +23,61 @@ const ResultCard: React.FC<ResultCardProps> = ({
   onToggleFavorite, 
   onSpinAgain 
 }) => {
-  // 隨機契合星座
+  const [filterHighRating, setFilterHighRating] = useState(false);
+  const [showAllAlternatives, setShowAllAlternatives] = useState(false);
+
+  // 隨機選出三個契合星座
   const randomZodiacs = useMemo(() => {
     const shuffled = [...ZODIAC_SIGNS].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 3);
   }, [category.id]);
 
-  // 解析 3 精選 + 7 備選
-  const parsedData = useMemo(() => {
-    if (!aiData?.text) return { featured: [], alternatives: [] };
-
-    const text = aiData.text;
-    const featuredPart = text.split('===備選名單===')[0] || '';
-    const altPart = text.split('===備選名單===')[1] || '';
-
-    // 解析精選
-    const featuredSections = featuredPart.split('---').filter(s => s.trim().includes('###'));
-    const featured = featuredSections.map(section => {
+  // 解析推薦資訊 (解析 10 間)
+  const allRestaurants = useMemo(() => {
+    if (!aiData?.text) return [];
+    
+    const sections = aiData.text.split('---').filter(s => s.trim().includes('###'));
+    
+    return sections.map(section => {
       const nameMatch = section.match(/###\s*(.*)/);
+      const typeMatch = section.match(/類型：\s*(.*)/);
+      const ratingMatch = section.match(/星級：\s*([\d.]+)/);
       const priceMatch = section.match(/價位：\s*(.*)/);
       const descMatch = section.match(/簡介：\s*(.*)/);
       const reviewsMatch = section.match(/-\s*(.*)/g);
-      const name = nameMatch ? nameMatch[1].trim() : "未知店家";
-      const mapLink = aiData.links.find(l => l.title.includes(name) || name.includes(l.title));
       
+      const name = nameMatch ? nameMatch[1].trim() : "未知店家";
+      const rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
+      const type = typeMatch ? typeMatch[1].trim() : "精選";
+      const mapLink = aiData.links.find(l => l.title.includes(name) || name.includes(l.title));
+
+      let description = descMatch ? descMatch[1].trim() : "";
+      if (description.length > 20) description = description.slice(0, 20) + "...";
+
       return {
         name,
+        type,
+        rating,
         price: priceMatch ? priceMatch[1].trim() : "$",
-        description: descMatch ? descMatch[1].trim() : "美味值得一試",
+        description,
         reviews: reviewsMatch ? reviewsMatch.slice(0, 3).map(r => r.replace('-', '').trim()) : [],
         url: mapLink?.uri || `https://www.google.com/maps/search/${encodeURIComponent(name)}`
       };
-    }).slice(0, 3);
-
-    // 解析備選
-    const altLines = altPart.split('\n').filter(l => l.includes('*'));
-    const alternatives = altLines.map(line => {
-      const cleanLine = line.replace('*', '').trim();
-      const parts = cleanLine.split('|').map(p => p.trim());
-      const name = parts[0] || "其他好店";
-      const price = parts[1] || "";
-      const rating = parts[2] || "";
-      const mapLink = aiData.links.find(l => l.title.includes(name) || name.includes(l.title));
-      
-      return { 
-        name, 
-        price, 
-        rating, 
-        url: mapLink?.uri || `https://www.google.com/maps/search/${encodeURIComponent(name)}` 
-      };
-    }).slice(0, 7);
-
-    return { featured, alternatives };
+    });
   }, [aiData]);
 
+  // 根據篩選條件過濾
+  const filtered = useMemo(() => {
+    return filterHighRating ? allRestaurants.filter(res => res.rating >= 4.0) : allRestaurants;
+  }, [allRestaurants, filterHighRating]);
+
+  // 分成精選與備選
+  const featured = useMemo(() => filtered.slice(0, 3), [filtered]);
+  const alternatives = useMemo(() => filtered.slice(3, 10), [filtered]);
+
   return (
-    <div className="w-full max-w-md bg-white rounded-[40px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-500 border border-gray-100 mb-10">
-      {/* Header */}
+    <div className="w-full max-w-md bg-white rounded-[40px] shadow-2xl overflow-hidden border border-gray-100 mb-10 animate-in fade-in zoom-in duration-500">
+      {/* 頂部 Header */}
       <div className="bg-gradient-to-br from-orange-400 to-red-500 p-8 flex flex-col items-center text-white relative">
         <button 
           onClick={onToggleFavorite}
@@ -87,107 +85,132 @@ const ResultCard: React.FC<ResultCardProps> = ({
         >
           {isFavorited ? '❤️' : '🤍'}
         </button>
-        <div className="bg-white/20 p-3 rounded-2xl mb-4 backdrop-blur-md">
-          <span className="text-3xl">🎉</span>
+        <div className="bg-white/20 p-4 rounded-3xl mb-4 backdrop-blur-md">
+          <span className="text-4xl">✨</span>
         </div>
-        <h2 className="text-3xl font-black mb-1">抽中：{category.name}</h2>
-        <p className="text-orange-50 text-center text-xs opacity-90 font-medium tracking-wide">台壽夥伴專屬：5km 內 10 間口袋名單</p>
+        <h2 className="text-3xl font-black mb-1">中獎：{category.name}</h2>
+        <p className="text-orange-50 text-[12px] opacity-90 font-bold uppercase tracking-widest">Tailored for TL Partners</p>
       </div>
 
       <div className="p-6">
-        {/* 星座趣味標籤 */}
+        {/* 契合星座 */}
         <div className="mb-8 flex flex-col items-center">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">🍀 今日契合星座</p>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span> 今日契合星座
+          </p>
           <div className="flex gap-2">
             {randomZodiacs.map(sign => (
-              <span key={sign} className="px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[11px] font-bold border border-orange-100">
+              <span key={sign} className="px-3 py-1 bg-slate-50 text-slate-500 rounded-full text-[11px] font-black border border-slate-100 shadow-sm">
                 {sign}
               </span>
             ))}
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="py-20 flex flex-col items-center justify-center space-y-4">
-            <div className="w-12 h-12 border-4 border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
-            <p className="text-gray-400 text-sm font-bold animate-pulse">正在精選 10 間在地美味...</p>
-          </div>
-        ) : (
-          <div className="space-y-10">
-            {/* 精選推薦 Top 3 */}
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-xl">🏆</span>
-                <h3 className="text-lg font-black text-gray-800">精選前三名</h3>
-              </div>
-              <div className="space-y-4">
-                {parsedData.featured.map((res, idx) => (
-                  <div key={idx} className="bg-white border border-gray-100 rounded-[30px] p-5 shadow-sm hover:shadow-md transition-all border-l-4 border-l-orange-500">
-                    <div className="flex justify-between items-start mb-2">
-                      <a href={res.url} target="_blank" rel="noopener noreferrer" className="text-lg font-black text-gray-800 hover:text-blue-600">
-                        {res.name}
-                      </a>
-                      <span className="text-orange-500 font-black text-xs bg-orange-50 px-2 py-0.5 rounded-lg">{res.price}</span>
-                    </div>
-                    <p className="text-gray-600 text-[13px] leading-relaxed mb-4 font-medium">✨ {res.description}</p>
-                    
-                    <div className="space-y-2 bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">夥伴最新評論</p>
-                      {res.reviews.map((rev, ridx) => (
-                        <div key={ridx} className="flex gap-2 text-[11px] text-gray-500 leading-snug">
-                          <span className="text-orange-300 shrink-0">💬</span>
-                          <p className="italic line-clamp-2">{rev}</p>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <a href={res.url} target="_blank" rel="noopener noreferrer" className="mt-4 w-full py-2.5 bg-blue-50 text-blue-600 text-xs font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all">
-                      🗺️ 開啟 Google 地圖
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* 備選名單 Next 7 */}
-            {parsedData.alternatives.length > 0 && (
-              <section className="bg-slate-50 rounded-[35px] p-6 border border-slate-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-xl">🍱</span>
-                  <h3 className="text-base font-black text-gray-800">在地備選推薦</h3>
-                </div>
-                <div className="divide-y divide-slate-200">
-                  {parsedData.alternatives.map((alt, idx) => (
-                    <a 
-                      key={idx} 
-                      href={alt.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="flex items-center justify-between py-3.5 hover:bg-white/50 rounded-lg px-2 transition-colors group"
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-bold text-gray-700 text-[13px] group-hover:text-blue-600">{alt.name}</span>
-                        <div className="flex gap-2 mt-1">
-                          <span className="text-[10px] text-orange-400 font-bold">{alt.price}</span>
-                          <span className="text-[10px] text-gray-400">{alt.rating}</span>
-                        </div>
-                      </div>
-                      <span className="text-gray-300 text-xs group-hover:text-blue-400">📍</span>
-                    </a>
-                  ))}
-                </div>
-              </section>
+        {/* 推薦列表與篩選器 */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-black text-gray-800 flex items-center gap-2">
+              🏅 精選推薦 (3間)
+            </h3>
+            
+            {/* 篩選開關 */}
+            {!isLoading && allRestaurants.length > 0 && (
+              <button 
+                onClick={() => setFilterHighRating(!filterHighRating)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black transition-all border ${
+                  filterHighRating 
+                    ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-100' 
+                    : 'bg-white text-gray-400 border-gray-200 hover:border-orange-200'
+                }`}
+              >
+                {filterHighRating ? '🏅 已過濾 4.0+' : '🏅 篩選 4.0+'}
+              </button>
             )}
           </div>
-        )}
 
-        {/* Footer Actions */}
-        <div className="mt-10 grid grid-cols-2 gap-4">
+          {isLoading ? (
+            <div className="py-20 flex flex-col items-center justify-center space-y-4">
+              <div className="w-12 h-12 border-4 border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
+              <p className="text-gray-400 text-xs font-bold">搜尋 10 間精選餐廳中...</p>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {/* 精選區域 */}
+              <div className="space-y-5">
+                {featured.length > 0 ? (
+                  featured.map((res, idx) => (
+                    <div key={`feat-${idx}`} className="bg-gradient-to-br from-white to-orange-50/30 border border-orange-100 rounded-[32px] p-5 shadow-sm group animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex flex-col">
+                          <a href={res.url} target="_blank" rel="noopener noreferrer" className="text-lg font-black text-slate-800 hover:text-blue-600 transition-colors">
+                            {res.name}
+                          </a>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-yellow-500 text-xs">⭐</span>
+                            <span className="text-slate-500 text-[11px] font-black">{res.rating}</span>
+                          </div>
+                        </div>
+                        <span className="text-orange-600 font-black text-sm px-2 py-0.5 bg-orange-100 rounded-lg">{res.price}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-2xl mb-4 border border-slate-50 shadow-sm">
+                        <p className="text-slate-600 text-[13px] font-bold leading-relaxed">💡 {res.description}</p>
+                      </div>
+                      <div className="space-y-2 mb-4">
+                        {res.reviews.map((rev, ridx) => (
+                          <div key={ridx} className="flex gap-2 text-[11px] text-slate-500 font-medium">
+                            <span className="flex-none text-blue-400 font-black">“</span>
+                            <p className="italic leading-snug">{rev}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <a href={res.url} target="_blank" rel="noopener noreferrer" className="w-full py-3 bg-blue-600 text-white text-[13px] font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-blue-100 active:scale-95 transition-all">
+                        🗺️ 前往 Google 地圖
+                      </a>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-gray-400 text-xs font-bold bg-gray-50 rounded-2xl">暫無符合條件的精選餐廳</div>
+                )}
+              </div>
+
+              {/* 備選區域 */}
+              <div className="space-y-3 pt-4 border-t border-gray-100">
+                <h3 className="text-base font-black text-gray-400 flex items-center gap-2 mb-4">
+                  🥈 備選清單 (7間)
+                </h3>
+                {alternatives.length > 0 ? (
+                  <div className="space-y-2">
+                    {alternatives.map((res, idx) => (
+                      <div key={`alt-${idx}`} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between hover:border-orange-200 transition-colors group">
+                        <div className="flex flex-col overflow-hidden">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-black text-slate-700 truncate text-sm">{res.name}</h4>
+                            <span className="text-[10px] font-black text-yellow-600">★{res.rating}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">{res.description}</p>
+                        </div>
+                        <a href={res.url} target="_blank" rel="noopener noreferrer" className="flex-none w-8 h-8 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center hover:bg-blue-50 hover:text-blue-500 transition-all">
+                          🗺️
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-gray-400 text-xs font-bold bg-gray-50 rounded-2xl">暫無符合條件的備選餐廳</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 底部按鈕 */}
+        <div className="mt-10 grid grid-cols-2 gap-3">
           <button 
             onClick={onSpinAgain}
-            className="py-4 border-2 border-orange-500 text-orange-500 text-sm font-black rounded-2xl hover:bg-orange-50 active:scale-95 transition"
+            className="py-4 border-2 border-slate-200 text-slate-600 text-sm font-black rounded-2xl hover:bg-slate-50 active:scale-95 transition"
           >
-            手氣不好，重抽
+            沒胃口，再轉！
           </button>
           <button 
             onClick={onToggleFavorite}
