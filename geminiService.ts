@@ -5,15 +5,16 @@ import { CATEGORIES } from "./constants";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 /**
- * 根據使用者抽中的類別，搜尋附近 5 公里內的具體餐廳，並提供深度推薦資訊
+ * 根據類別搜尋 10 間餐廳：3 間精選（含評論）+ 7 間備選（高評價清單）
  */
 export const getNearbyRecommendation = async (categoryName: string, lat: number, lng: number) => {
   try {
     const prompt = `你是一位專業的午餐顧問，正在為「台灣人壽（台壽）」的夥伴推薦午餐。
-    請在我的位置附近 5 公里內，推薦 3 間真實存在且評價優良的「${categoryName}」類別餐廳。
+    請在我的位置附近 5 公里內，推薦 10 間真實存在的「${categoryName}」類別餐廳。
     
-    【輸出規範】：請嚴格依照以下結構輸出，每間餐廳之間用 "---" 分隔：
+    【輸出規範】：請嚴格依照以下結構輸出：
     
+    ===精選推薦===
     ### [店名]
     價位：[$, $$, 或 $$$]
     簡介：[限 20 字以內，描述特色]
@@ -21,12 +22,15 @@ export const getNearbyRecommendation = async (categoryName: string, lat: number,
     - [最新評論1]
     - [最新評論2]
     - [最新評論3]
-    ---
+    --- (每間精選以此分隔)
     
-    【指令要求】：
-    - 「簡介」絕對不能超過 20 個繁體中文字。
-    - 「熱評」請擷取 Google Maps 上的真實評論重點。
-    - 確保推薦的店家地點正確且適合商務夥伴用餐。`;
+    ===備選名單===
+    * [店名] | 價位：[$, $$, 或 $$$] | 評價：[例如 4.5]
+    (列出 7 間高評價備選店家)
+    
+    【重要指令】：
+    - 精選餐廳的「簡介」絕對不能超過 20 個繁體中文字。
+    - 確保所有推薦的店家皆真實存在且能透過 Google Maps 找到。`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash", 
@@ -47,7 +51,7 @@ export const getNearbyRecommendation = async (categoryName: string, lat: number,
     const text = response.text || "";
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     
-    // 提取地圖連結與名稱對應
+    // 提取地圖連結
     const links = chunks
       .filter((chunk: any) => chunk.maps?.uri)
       .map((chunk: any) => ({
@@ -66,7 +70,7 @@ export const getNearbyRecommendation = async (categoryName: string, lat: number,
 };
 
 /**
- * AI 智能個人化推薦（基於歷史紀錄）
+ * AI 智能個人化推薦
  */
 export const getAIRecommendation = async (history: string[]) => {
   try {
@@ -75,7 +79,7 @@ export const getAIRecommendation = async (history: string[]) => {
 
     const prompt = `你是專門為「台壽夥伴」服務的專業午餐顧問。根據夥伴的歷史紀錄，從以下類別中推薦今天的午餐：${categoriesList}。
     ${historyText}
-    請從列表中選出一個類別，並提供充滿活力的推薦理由，以及建議的三個具體餐點。`;
+    請選出一個類別並提供推薦理由及三個具體餐點。`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
