@@ -7,16 +7,31 @@ interface RouletteProps {
   onSpinEnd: (result: Category) => void;
   isSpinning: boolean;
   setIsSpinning: (val: boolean) => void;
+  userLocation: {lat: number, lng: number} | null;
+  onRequestLocation: () => void;
 }
 
-const Roulette: React.FC<RouletteProps> = ({ onSpinEnd, isSpinning, setIsSpinning }) => {
+const Roulette: React.FC<RouletteProps> = ({ 
+  onSpinEnd, 
+  isSpinning, 
+  setIsSpinning,
+  userLocation,
+  onRequestLocation
+}) => {
   const [rotation, setRotation] = useState(0);
   const segments = CATEGORIES.length;
   const degreesPerSegment = 360 / segments;
 
-  const handleSpin = () => {
+  const handleButtonClick = () => {
     if (isSpinning) return;
 
+    // 若尚未取得定位，先請求授權
+    if (!userLocation) {
+      onRequestLocation();
+      return;
+    }
+
+    // 已有定位，開始轉盤
     setIsSpinning(true);
     const extraRotations = 8 + Math.random() * 5; 
     const randomSegment = Math.floor(Math.random() * segments);
@@ -52,9 +67,6 @@ const Roulette: React.FC<RouletteProps> = ({ onSpinEnd, isSpinning, setIsSpinnin
         >
           {/* 第一層：背景扇區 */}
           {CATEGORIES.map((cat, idx) => {
-            // 計算 36 度扇形的裁切路徑
-            // tan(36deg) * 50% = 36.33% -> 50% + 36.33% = 86.33%
-            const xOffset = 50 + 50 * Math.tan((degreesPerSegment * Math.PI) / 360 / 2 * 2); 
             return (
               <div
                 key={`seg-${cat.id}`}
@@ -68,7 +80,7 @@ const Roulette: React.FC<RouletteProps> = ({ onSpinEnd, isSpinning, setIsSpinnin
             );
           })}
 
-          {/* 第二層：文字標籤 (獨立於裁切路徑外以確保完美置中) */}
+          {/* 第二層：文字標籤 */}
           {CATEGORIES.map((cat, idx) => (
             <div
               key={`label-${cat.id}`}
@@ -94,18 +106,32 @@ const Roulette: React.FC<RouletteProps> = ({ onSpinEnd, isSpinning, setIsSpinnin
       </div>
 
       <button
-        onClick={handleSpin}
+        onClick={handleButtonClick}
         disabled={isSpinning}
-        className={`px-12 py-4 rounded-2xl text-xl font-black text-white shadow-[0_10px_20px_rgba(249,115,22,0.3)] transform transition-all active:scale-95 active:translate-y-1 ${
+        className={`px-8 py-4 rounded-2xl text-lg font-black text-white shadow-[0_10px_20px_rgba(249,115,22,0.3)] transform transition-all active:scale-95 active:translate-y-1 min-w-[240px] ${
           isSpinning 
             ? 'bg-gray-300 cursor-not-allowed grayscale' 
-            : 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 hover:brightness-110'
+            : !userLocation 
+              ? 'bg-blue-600 hover:bg-blue-700 shadow-[0_10px_20px_rgba(37,99,235,0.3)]'
+              : 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 hover:brightness-110'
         }`}
       >
-        <span className="flex items-center gap-2">
-          {isSpinning ? '🎲 命運轉動中...' : '🔥 開始轉盤'}
+        <span className="flex items-center justify-center gap-2">
+          {isSpinning ? (
+            <>🎲 命運轉動中...</>
+          ) : !userLocation ? (
+            <>📍 授權定位以開始</>
+          ) : (
+            <>🔥 開始轉盤</>
+          )}
         </span>
       </button>
+      
+      {!isSpinning && !userLocation && (
+        <p className="text-[10px] text-gray-400 mt-4 font-bold uppercase tracking-wider">
+          授權定位後我們才能為您搜尋 5km 內的美味
+        </p>
+      )}
     </div>
   );
 };

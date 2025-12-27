@@ -15,18 +15,41 @@ const App: React.FC = () => {
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   const [nearbyData, setNearbyData] = useState<any>(null);
   const [isLoadingNearby, setIsLoadingNearby] = useState(false);
-  const [sortBy, setSortBy] = useState<'RATING' | 'CP' | 'PRICE'>('RATING');
   
+  // 使用者定位狀態
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
   // 收藏清單狀態
   const [favorites, setFavorites] = useState<string[]>(() => {
     const saved = localStorage.getItem('lunchgo_favorites');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // 當收藏清單變動時存入 localStorage
   useEffect(() => {
     localStorage.setItem('lunchgo_favorites', JSON.stringify(favorites));
   }, [favorites]);
+
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("您的瀏覽器不支援定位功能。");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationError(null);
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        setLocationError("需要定位權限才能為您搜尋附近餐廳。請開啟權限後重試。");
+      }
+    );
+  };
 
   const toggleFavorite = (categoryId: string) => {
     setFavorites(prev => 
@@ -41,23 +64,17 @@ const App: React.FC = () => {
     setHistory(prev => [result.name, ...prev].slice(0, 10));
     setCurrentScreen('RESULT');
     
-    // 開始搜尋附近推薦
-    setIsLoadingNearby(true);
-    try {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          const data = await getNearbyRecommendation(result.name, latitude, longitude);
-          setNearbyData(data);
-          setIsLoadingNearby(false);
-        },
-        async (error) => {
-          console.error("Geolocation error:", error);
-          setIsLoadingNearby(false);
-        }
-      );
-    } catch (e) {
-      setIsLoadingNearby(false);
+    // 使用已取得的定位開始搜尋
+    if (userLocation) {
+      setIsLoadingNearby(true);
+      try {
+        const data = await getNearbyRecommendation(result.name, userLocation.lat, userLocation.lng);
+        setNearbyData(data);
+      } catch (e) {
+        console.error("Recommendation fetch error:", e);
+      } finally {
+        setIsLoadingNearby(false);
+      }
     }
   };
 
@@ -83,15 +100,24 @@ const App: React.FC = () => {
           
           {currentScreen === 'HOME' && (
             <div className="flex flex-col items-center w-full animate-in fade-in slide-in-from-top-4 duration-500">
-              <div className="text-center mb-10">
+              <div className="text-center mb-10 px-6">
                 <h2 className="text-xl font-black text-gray-800">辛苦了！夥伴們中午吃好點</h2>
                 <p className="text-gray-500 text-sm mt-1">轉動輪盤，讓命運決定今天的能量來源！</p>
+                {locationError && (
+                  <div className="mt-3 p-2 bg-red-50 text-red-500 text-xs rounded-lg border border-red-100 animate-pulse">
+                    ⚠️ {locationError}
+                  </div>
+                )}
               </div>
+              
               <Roulette 
                 onSpinEnd={handleSpinEnd} 
                 isSpinning={isSpinning} 
-                setIsSpinning={setIsSpinning} 
+                setIsSpinning={setIsSpinning}
+                userLocation={userLocation}
+                onRequestLocation={requestLocation}
               />
+
               {history.length > 0 && (
                 <div className="mt-12 w-full text-center">
                   <h3 className="text-gray-400 text-[10px] font-bold mb-4 uppercase tracking-widest">最近抽中</h3>
