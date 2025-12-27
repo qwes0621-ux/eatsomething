@@ -6,6 +6,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 /**
  * 根據使用者抽中的類別，搜尋附近 5 公里內的具體餐廳，並提供深度推薦資訊
+ * 使用 gemini-2.5-flash 以支援 Google Maps Grounding 工具
  */
 export const getNearbyRecommendation = async (categoryName: string, lat: number, lng: number) => {
   try {
@@ -23,7 +24,7 @@ export const getNearbyRecommendation = async (categoryName: string, lat: number,
     請以條列格式回答，口吻親切且貼近辦公室夥伴需求。`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash", // 修正：Maps Grounding 僅支援 Gemini 2.5 系列模型
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
