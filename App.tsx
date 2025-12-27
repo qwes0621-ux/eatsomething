@@ -50,13 +50,13 @@ const App: React.FC = () => {
         });
         setLocationError(null);
         setIsRequestingLocation(false);
-        setShowGuide(false);
+        setShowGuide(false); // 成功後關閉教學
       },
       (error) => {
         console.error("Geolocation error:", error);
         setIsRequestingLocation(false);
         if (error.code === error.PERMISSION_DENIED) {
-          setLocationError("您拒絕了定位授權。為了精準推薦 5km 內的台壽夥伴美食，請在瀏覽器設定中開啟定位權限後重試。");
+          setLocationError("您拒絕了定位授權。為了推薦 5km 內的台壽夥伴美食，必須開啟定位才能使用轉盤。");
         } else {
           setLocationError("定位取得失敗，請檢查網路或 GPS 訊號後重試。");
         }
@@ -85,7 +85,6 @@ const App: React.FC = () => {
     setHistory(prev => [result.name, ...prev].slice(0, 10));
     setCurrentScreen('RESULT');
     
-    // 使用已取得的定位開始搜尋
     if (userLocation) {
       setIsLoadingNearby(true);
       try {
@@ -141,7 +140,7 @@ const App: React.FC = () => {
                         onClick={() => setShowGuide(!showGuide)}
                         className="px-4 py-2 bg-white text-gray-600 border border-gray-200 font-bold rounded-full shadow-sm active:scale-95 transition"
                       >
-                        {showGuide ? "關閉說明" : "教我如何開啟"}
+                        {showGuide ? "隱藏教學" : "如何開啟？"}
                       </button>
                     </div>
                   </div>
@@ -151,7 +150,7 @@ const App: React.FC = () => {
                 
                 {isRequestingLocation && !userLocation && (
                   <div className="mt-4 p-3 bg-blue-50 text-blue-600 text-xs rounded-2xl border border-blue-100 animate-pulse font-bold">
-                    🔍 正在定位您的位置...
+                    🔍 正在尋找夥伴的位置...
                   </div>
                 )}
               </div>

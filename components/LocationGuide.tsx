@@ -15,7 +15,7 @@ const LocationGuide: React.FC = () => {
             <span className="w-1.5 h-1.5 bg-orange-600 rounded-full"></span> 電腦版 Chrome
           </h4>
           <ol className="text-xs text-gray-600 space-y-2 ml-2 list-decimal list-inside leading-relaxed">
-            <li>點擊網址列左側的 <span className="inline-block px-1 bg-gray-100 border border-gray-200 rounded">🔒 鎖頭</span> 圖示。</li>
+            <li>點擊網址列左側的 <span className="inline-block px-1 bg-gray-100 border border-gray-200 rounded">🔒 鎖頭</span> 或設定圖示。</li>
             <li>找到「位置」選項並切換為 <span className="font-bold text-blue-600">允許</span>。</li>
             <li>重新整理網頁即可。</li>
           </ol>
@@ -27,8 +27,8 @@ const LocationGuide: React.FC = () => {
             <span className="w-1.5 h-1.5 bg-orange-600 rounded-full"></span> iPhone (Safari)
           </h4>
           <ol className="text-xs text-gray-600 space-y-2 ml-2 list-decimal list-inside leading-relaxed">
-            <li>打開「設定」 > 「隱私權與安全性」。</li>
-            <li>點擊「定位服務」，確認已開啟。</li>
+            <li>打開 iOS「設定」 > 「隱私權與安全性」。</li>
+            <li>點擊「定位服務」，確認總開關已開啟。</li>
             <li>在下方列表中找到「Safari 瀏覽器」，設定為「使用期間」。</li>
             <li>回到網頁點擊「重新授權定位」。</li>
           </ol>
@@ -48,8 +48,8 @@ const LocationGuide: React.FC = () => {
       </div>
 
       <div className="mt-6 pt-4 border-t border-gray-50">
-        <p className="text-[10px] text-gray-400 italic text-center">
-          💡 完成後請務必點擊「重新授權定位」按鈕，讓系統再次確認！
+        <p className="text-[10px] text-gray-400 italic text-center leading-relaxed">
+          💡 完成設定後，請務必點擊下方的「重新授權定位」按鈕，讓系統重新偵測您的位置！
         </p>
       </div>
     </div>
