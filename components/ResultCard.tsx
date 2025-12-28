@@ -33,8 +33,11 @@ const ResultCard: React.FC<ResultCardProps> = ({
     loadData();
   }, [category.name, manualAddress]);
 
+  // 排序依價位區間低到高 (priceLevel 1 -> 4)
   const processedRestaurants = useMemo(() => {
-    return restaurants.slice(0, 6);
+    return [...restaurants]
+      .sort((a, b) => (a.priceLevel || 0) - (b.priceLevel || 0))
+      .slice(0, 6);
   }, [restaurants]);
 
   const handleOpenMap = (resName: string, resAddress: string) => {
@@ -64,6 +67,13 @@ const ResultCard: React.FC<ResultCardProps> = ({
       </div>
 
       <div className="p-6">
+        {/* 頂部資訊列 */}
+        <div className="flex items-center justify-between mb-4 px-2">
+          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+            ✨ 精選周邊 (依價位低至高排序)
+          </span>
+        </div>
+
         {isLoading ? (
           <div className="py-20 flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
@@ -89,6 +99,11 @@ const ResultCard: React.FC<ResultCardProps> = ({
                     <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1 truncate">
                       <span>📍</span> {res.distance} • {res.address}
                     </p>
+                    {res.openingHours && (
+                      <p className="text-[9px] text-orange-500 font-bold mt-0.5">
+                        🕒 {res.openingHours}
+                      </p>
+                    )}
                   </div>
                   <span className="bg-orange-500 text-white px-2 py-1 rounded-lg text-[11px] font-black whitespace-nowrap shadow-sm">
                     ★ {res.rating}

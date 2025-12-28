@@ -8,6 +8,8 @@ export interface RestaurantInfo {
   review: string;
   distance: string;
   priceRange: string;
+  priceLevel: number; // 1:$, 2:$$, 3:$$$, 4:$$$$
+  openingHours: string;
 }
 
 export interface GroundingSource {
@@ -26,8 +28,9 @@ export const fetchNearbyRestaurants = async (categoryName: string, address: stri
     
     【核心要求】：
     1. 務必提供精確 6 間真實存在的店家。
-    2. 無視評分高低與價位高低。
-    3. 若該特定分類店家不足 6 間，請自動擴大範圍搜尋相似的料理種類，務必填滿 6 個名額。
+    2. 無視評分高低。
+    3. 無視價位高低，但請提供價位等級供排序。
+    4. 若該特定分類店家不足 6 間，請自動擴大範圍搜尋相似的料理種類，務必填滿 6 個名額。
     
     請直接回傳一個包含 6 個物件的 JSON 陣列，放在 Markdown 的 JSON 代碼塊中。
     JSON 格式要求如下：
@@ -38,7 +41,9 @@ export const fetchNearbyRestaurants = async (categoryName: string, address: stri
         "rating": 數字評分,
         "review": "一則簡短評論(15字內)",
         "distance": "預估步行時間或距離",
-        "priceRange": "價位區間字串"
+        "priceRange": "價位區間字串(如: 100-200元)",
+        "priceLevel": 數字等級(1-4),
+        "openingHours": "營業時間(如: 11:00-20:00 或 營業中)"
       }
     ]`;
 
@@ -47,7 +52,6 @@ export const fetchNearbyRestaurants = async (categoryName: string, address: stri
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
-        // 注意：使用 googleMaps 工具時，不可設定 responseMimeType 或 responseSchema
       },
     });
 
@@ -63,7 +67,6 @@ export const fetchNearbyRestaurants = async (categoryName: string, address: stri
         console.error("JSON Parse Error:", e);
       }
     } else {
-      // 嘗試直接解析整個文字
       try {
         const potentialJson = text.substring(text.indexOf('['), text.lastIndexOf(']') + 1);
         restaurants = JSON.parse(potentialJson);
