@@ -9,7 +9,7 @@ interface RestaurantInfo {
   rating: number;
   review: string;
   distance: string;
-  priceLevel: number; // 1: $, 2: $$, 3: $$$
+  priceRange: string;
 }
 
 interface ResultCardProps {
@@ -41,20 +41,16 @@ const ResultCard: React.FC<ResultCardProps> = ({
     loadData();
   }, [category.name, manualAddress]);
 
-  // 動態過濾並按價格「由低至高」排序
+  // 動態過濾並按「評價由高至低」排序
   const processedRestaurants = useMemo(() => {
     return restaurants
       .filter(res => res.rating >= minRating)
-      .sort((a, b) => a.priceLevel - b.priceLevel);
+      .sort((a, b) => b.rating - a.rating); // 評價由高至低
   }, [restaurants, minRating]);
 
   const handleOpenMap = (resName: string, resAddress: string) => {
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${resName} ${resAddress}`)}`;
     window.open(url, '_blank');
-  };
-
-  const renderPriceSymbol = (level: number) => {
-    return '$'.repeat(level);
   };
 
   return (
@@ -76,7 +72,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
         <div className="flex items-center justify-between mb-6 bg-slate-50 p-1.5 rounded-2xl">
           <span className="text-[10px] font-black text-slate-400 ml-3 uppercase flex flex-col">
             <span>篩選評分</span>
-            <span className="text-[8px] opacity-60">(按價位低至高排序)</span>
+            <span className="text-[8px] opacity-60">(按評價由高至低排序)</span>
           </span>
           <div className="flex gap-1">
             {[0, 4.0, 4.5].map((rate) => (
@@ -98,7 +94,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
         {isLoading ? (
           <div className="py-20 flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
-            <p className="text-sm font-black text-slate-400">正在搜尋周邊平價好店...</p>
+            <p className="text-sm font-black text-slate-400">正在搜尋周邊精選好店...</p>
           </div>
         ) : (
           <div className="space-y-3 min-h-[300px]">
@@ -114,15 +110,15 @@ const ResultCard: React.FC<ResultCardProps> = ({
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <h4 className="font-black text-slate-800 group-hover:text-orange-600">{res.name}</h4>
-                        <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
-                          {renderPriceSymbol(res.priceLevel)}
+                        <span className="text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                          {res.priceRange}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
                         <span>📍</span> {res.distance} • {res.address}
                       </p>
                     </div>
-                    <span className="bg-orange-50 text-orange-600 px-2 py-1 rounded-lg text-[11px] font-black whitespace-nowrap">
+                    <span className="bg-orange-500 text-white px-2 py-1 rounded-lg text-[11px] font-black whitespace-nowrap shadow-sm">
                       ★ {res.rating}
                     </span>
                   </div>
