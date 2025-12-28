@@ -91,19 +91,19 @@ const Roulette: React.FC<RouletteProps> = ({
 
       <button
         onClick={handleButtonClick}
-        disabled={isSpinning}
+        disabled={isSpinning || !userLocation}
         className={`px-8 py-5 rounded-[2rem] text-lg font-black text-white shadow-2xl transform transition-all active:scale-95 min-w-[280px] ${
           isSpinning 
             ? 'bg-slate-400 cursor-not-allowed' 
             : !userLocation 
-              ? 'bg-slate-200 text-slate-400' 
+              ? 'bg-slate-200 text-slate-400 border-2 border-dashed border-slate-300' 
               : 'bg-gradient-to-r from-orange-500 to-red-600 shadow-orange-200'
         }`}
       >
         {isSpinning 
           ? '🎰 命運決定中...' 
           : !userLocation 
-            ? '🔒 請先設定位置' 
+            ? '🔒 請驗證通訊處以解鎖' 
             : '🔥 開始決定午餐'}
       </button>
     </div>

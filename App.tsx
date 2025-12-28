@@ -11,6 +11,10 @@ const App: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   
+  // 通訊處驗證：只要包含「愛鷹」二字即可解鎖
+  const [officeName, setOfficeName] = useState('');
+  const isUnlocked = officeName.includes('愛鷹');
+
   // 使用者手動輸入的地址
   const [manualAddress, setManualAddress] = useState<string>(() => {
     return localStorage.getItem('lunchgo_address') || '';
@@ -63,7 +67,7 @@ const App: React.FC = () => {
             <div className="flex flex-col items-center w-full animate-in fade-in slide-in-from-top-4 duration-500">
               
               {/* 地址輸入區塊 */}
-              <div className="w-full max-w-sm mb-8">
+              <div className="w-full max-w-sm mb-6">
                 {isEditing ? (
                   <div className="flex flex-col gap-4">
                     <form onSubmit={saveAddress} className="bg-white p-6 rounded-[2.5rem] shadow-xl border-2 border-orange-100 animate-in zoom-in duration-300">
@@ -104,20 +108,51 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* 通訊處驗證區塊 */}
+              {!isEditing && (
+                <div className="w-full max-w-sm mb-8 animate-in slide-in-from-bottom-2 duration-500">
+                  <div className={`bg-white px-6 py-4 rounded-[2rem] shadow-md border-2 transition-all ${isUnlocked ? 'border-green-400 bg-green-50/30' : 'border-slate-100 focus-within:border-orange-300'}`}>
+                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-wider ml-1">
+                       輸入通訊處名稱 {isUnlocked && <span className="text-green-500 ml-2">✓ 驗證通過</span>}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{isUnlocked ? '🦅' : '🔒'}</span>
+                      <input 
+                        type="text"
+                        value={officeName}
+                        onChange={(e) => setOfficeName(e.target.value)}
+                        placeholder="輸入通訊處名稱"
+                        className="w-full bg-transparent text-sm font-black outline-none placeholder:text-slate-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <Roulette 
                 onSpinEnd={handleSpinEnd} 
                 isSpinning={isSpinning} 
                 setIsSpinning={setIsSpinning}
-                userLocation={manualAddress ? { lat: 0, lng: 0 } : null} 
-                onRequestLocation={() => setIsEditing(true)}
+                userLocation={manualAddress && isUnlocked ? { lat: 0, lng: 0 } : null} 
+                onRequestLocation={() => {
+                   if (!manualAddress) setIsEditing(true);
+                }}
                 isRequestingLocation={false}
               />
               
               {!isEditing && manualAddress && !isSpinning && (
-                <p className="mt-8 text-[11px] text-slate-400 font-bold italic animate-pulse">
-                   ✨ 已準備就緒！點擊開始決定午餐吧
-                </p>
+                <div className="mt-8 flex flex-col items-center">
+                   {!isUnlocked ? (
+                      <p className="text-[11px] text-red-500 font-black bg-red-50 px-4 py-2 rounded-full border border-red-100 animate-bounce">
+                        ⚠️ 請輸入通訊處名稱（含愛鷹）以解鎖功能
+                      </p>
+                   ) : (
+                      <p className="text-[11px] text-slate-400 font-bold italic animate-pulse">
+                         ✨ 已識別愛鷹夥伴！點擊按鈕決定午餐吧
+                      </p>
+                   )}
+                </div>
               )}
             </div>
           )}
