@@ -8,9 +8,13 @@ export const fetchNearbyRestaurants = async (categoryName: string, address: stri
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
-    const prompt = `請搜尋位於『${address}』附近的『${categoryName}』餐廳。
-    請提供精確 6 間真實存在的店家資訊。
-    請包含每間店的『價位等級』(1為最便宜, 4為最貴) 以及具體的『價位區間』(例如：100-200元)。
+    const prompt = `請搜尋位於『${address}』附近的『${categoryName}』相關餐廳。
+    
+    【核心要求】：
+    1. 務必提供精確 6 間真實存在的店家。
+    2. 無視評分高低（即使 3 分以下也沒關係）。
+    3. 無視價位高低。
+    4. 若該特定分類店家不足 6 間，請自動擴大範圍搜尋相似的料理種類，務必填滿 6 個名額。
     
     【回傳 JSON 格式】：
     [
