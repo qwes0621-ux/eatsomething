@@ -2,14 +2,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CATEGORIES } from "./constants";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
 /**
  * 根據使用者抽中的類別，搜尋附近 5 公里內的具體餐廳
  * 要求總共 10 間：3 精選 + 7 備選
  */
 export const getNearbyRecommendation = async (categoryName: string, lat: number, lng: number) => {
   try {
+    // 每次呼叫時初始化，使用 process.env.API_KEY
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    
     const prompt = `你是一位專為「台壽夥伴（台灣人壽）」服務的專業午餐顧問。
     請在夥伴位置附近 5 公里內，推薦 10 間真實存在的「${categoryName}」餐廳。
     
@@ -73,6 +74,9 @@ export const getNearbyRecommendation = async (categoryName: string, lat: number,
  */
 export const getAIRecommendation = async (history: string[]) => {
   try {
+    // 每次呼叫時初始化
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    
     const historyText = history.length > 0 ? `台壽夥伴最近吃了：${history.join('、')}` : "夥伴尚無紀錄。";
     const categoriesList = CATEGORIES.map(c => c.name).join('、');
 
