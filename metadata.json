@@ -1,7 +1,5 @@
 {
-  "name": "台壽夥伴吃什麼？LunchGo!",
-  "description": "台壽夥伴專屬午餐轉盤應用，幫助您快速決定今天的午餐，並提供 5km 內精選餐廳、AI 智慧推薦與 Google 地圖導航。",
-  "requestFramePermissions": [
-    "geolocation"
-  ]
+  "name": "LunchGo! 今天吃什麼？",
+  "description": "極簡午餐轉盤應用，輸入地址、轉動轉盤，秒速搜尋周邊餐廳。",
+  "requestFramePermissions": []
 }

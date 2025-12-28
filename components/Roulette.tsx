@@ -7,7 +7,7 @@ interface RouletteProps {
   onSpinEnd: (result: Category) => void;
   isSpinning: boolean;
   setIsSpinning: (val: boolean) => void;
-  userLocation: {lat: number, lng: number} | null;
+  userLocation: any;
   onRequestLocation: () => void;
   isRequestingLocation: boolean;
 }
@@ -17,15 +17,14 @@ const Roulette: React.FC<RouletteProps> = ({
   isSpinning, 
   setIsSpinning,
   userLocation,
-  onRequestLocation,
-  isRequestingLocation
+  onRequestLocation
 }) => {
   const [rotation, setRotation] = useState(0);
   const segments = CATEGORIES.length;
   const degreesPerSegment = 360 / segments;
 
   const handleButtonClick = () => {
-    if (isSpinning || isRequestingLocation) return;
+    if (isSpinning) return;
 
     if (!userLocation) {
       onRequestLocation();
@@ -33,7 +32,7 @@ const Roulette: React.FC<RouletteProps> = ({
     }
 
     setIsSpinning(true);
-    const extraRotations = 8 + Math.random() * 5; 
+    const extraRotations = 10 + Math.random() * 5; 
     const randomSegment = Math.floor(Math.random() * segments);
     const newRotation = rotation + (extraRotations * 360) + (randomSegment * degreesPerSegment);
     
@@ -57,7 +56,7 @@ const Roulette: React.FC<RouletteProps> = ({
         <div className="absolute inset-[-12px] rounded-full border-[12px] border-white shadow-xl z-0"></div>
         
         <div 
-          className="w-full h-full rounded-full relative overflow-hidden transition-transform duration-[4000ms] cubic-bezier(0.2, 0, 0, 1) z-10 shadow-inner"
+          className="w-full h-full rounded-full relative overflow-hidden transition-transform duration-[4000ms] cubic-bezier(0.1, 0, 0, 1) z-10 shadow-inner"
           style={{ transform: `rotate(${rotation}deg)` }}
         >
           {CATEGORIES.map((cat, idx) => (
@@ -79,50 +78,34 @@ const Roulette: React.FC<RouletteProps> = ({
                 transform: `translateX(-50%) rotate(${idx * degreesPerSegment + degreesPerSegment / 2}deg)`
               }}
             >
-              <span className="text-xs md:text-sm font-black text-gray-800" style={{ writingMode: 'vertical-rl' }}>
+              <span className="text-xs font-black text-gray-800" style={{ writingMode: 'vertical-rl' }}>
                 {cat.name}
               </span>
             </div>
           ))}
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white rounded-full shadow-lg z-20 border-4 border-gray-50 flex items-center justify-center">
-             <span className="text-xl">🍴</span>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white rounded-full shadow-lg z-20 border-4 border-gray-50 flex items-center justify-center text-xl">
+             🍽️
           </div>
         </div>
       </div>
 
       <button
         onClick={handleButtonClick}
-        disabled={isSpinning || isRequestingLocation}
-        className={`px-8 py-4 rounded-2xl text-lg font-black text-white shadow-xl transform transition-all active:scale-95 min-w-[280px] ${
+        disabled={isSpinning}
+        className={`px-8 py-5 rounded-[2rem] text-lg font-black text-white shadow-2xl transform transition-all active:scale-95 min-w-[280px] ${
           isSpinning 
-            ? 'bg-gray-400 cursor-not-allowed' 
-            : isRequestingLocation
-              ? 'bg-blue-300 cursor-wait animate-pulse'
-              : !userLocation 
-                ? 'bg-blue-600 animate-bounce shadow-blue-200' 
-                : 'bg-gradient-to-r from-orange-500 to-red-600 shadow-orange-200'
+            ? 'bg-slate-400 cursor-not-allowed' 
+            : !userLocation 
+              ? 'bg-slate-200 text-slate-400' 
+              : 'bg-gradient-to-r from-orange-500 to-red-600 shadow-orange-200'
         }`}
       >
         {isSpinning 
-          ? '🎲 命運轉動中...' 
-          : isRequestingLocation 
-            ? '📍 定位偵測中...' 
-            : !userLocation 
-              ? '📍 點擊允許定位' 
-              : '🔥 開始轉盤'}
+          ? '🎰 命運決定中...' 
+          : !userLocation 
+            ? '🔒 請先設定位置' 
+            : '🔥 開始決定午餐'}
       </button>
-      
-      {!userLocation && !isSpinning && !isRequestingLocation && (
-        <p className="mt-4 text-[12px] text-red-500 font-black bg-red-50 px-5 py-2.5 rounded-2xl border border-red-100 shadow-sm animate-pulse">
-          ⚠️ 需開啟定位才能精準推薦 3KM 內店家
-        </p>
-      )}
-
-      {userLocation && !isSpinning && (
-        <p className="mt-4 text-[11px] text-slate-400 font-bold italic">
-          ✨ 定位已鎖定 3KM 範圍，準備好開吃了嗎？
-        </p>
-      )}
     </div>
   );
 };
