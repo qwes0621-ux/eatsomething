@@ -10,7 +10,7 @@ export const fetchNearbyRestaurants = async (categoryName: string, address: stri
   try {
     const prompt = `請搜尋位於『${address}』附近的『${categoryName}』餐廳。
     請提供至少 6-8 間真實存在的店家資訊。
-    特別注意：請提供每間店的大約『價位區間』（例如：100-200元、300-500元、1000元以上）。
+    請包含每間店的『價位等級』(1為最便宜, 4為最貴) 以及具體的『價位區間』(例如：100-200元)。
     
     【回傳 JSON 格式】：
     [
@@ -20,7 +20,8 @@ export const fetchNearbyRestaurants = async (categoryName: string, address: stri
         "rating": 數字評分(如 4.2),
         "review": "一則簡短評論(15字內)",
         "distance": "預估步行時間或距離",
-        "priceRange": "價位區間字串"
+        "priceRange": "價位區間字串",
+        "priceLevel": 數字等級(1-4)
       }
     ]`;
 
@@ -40,9 +41,10 @@ export const fetchNearbyRestaurants = async (categoryName: string, address: stri
               rating: { type: Type.NUMBER },
               review: { type: Type.STRING },
               distance: { type: Type.STRING },
-              priceRange: { type: Type.STRING }
+              priceRange: { type: Type.STRING },
+              priceLevel: { type: Type.NUMBER }
             },
-            required: ["name", "address", "rating", "review", "distance", "priceRange"]
+            required: ["name", "address", "rating", "review", "distance", "priceRange", "priceLevel"]
           }
         }
       }

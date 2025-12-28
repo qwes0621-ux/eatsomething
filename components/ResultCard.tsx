@@ -10,6 +10,7 @@ interface RestaurantInfo {
   review: string;
   distance: string;
   priceRange: string;
+  priceLevel: number;
 }
 
 interface ResultCardProps {
@@ -29,7 +30,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
   const manualAddress = localStorage.getItem('lunchgo_address') || '';
   const [restaurants, setRestaurants] = useState<RestaurantInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [minRating, setMinRating] = useState<number>(0); // 0 = 全部
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC'); // ASC: 低到高, DESC: 高到低
 
   useEffect(() => {
     const loadData = async () => {
@@ -41,12 +42,16 @@ const ResultCard: React.FC<ResultCardProps> = ({
     loadData();
   }, [category.name, manualAddress]);
 
-  // 動態過濾並按「評價由高至低」排序
+  // 按「價位」進行排序，顯示所有餐廳
   const processedRestaurants = useMemo(() => {
-    return restaurants
-      .filter(res => res.rating >= minRating)
-      .sort((a, b) => b.rating - a.rating); // 評價由高至低
-  }, [restaurants, minRating]);
+    return [...restaurants].sort((a, b) => {
+      if (sortOrder === 'ASC') {
+        return a.priceLevel - b.priceLevel;
+      } else {
+        return b.priceLevel - a.priceLevel;
+      }
+    });
+  }, [restaurants, sortOrder]);
 
   const handleOpenMap = (resName: string, resAddress: string) => {
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${resName} ${resAddress}`)}`;
@@ -68,26 +73,33 @@ const ResultCard: React.FC<ResultCardProps> = ({
       </div>
 
       <div className="p-6">
-        {/* 過濾器控制項 */}
+        {/* 排序控制項 */}
         <div className="flex items-center justify-between mb-6 bg-slate-50 p-1.5 rounded-2xl">
           <span className="text-[10px] font-black text-slate-400 ml-3 uppercase flex flex-col">
-            <span>篩選評分</span>
-            <span className="text-[8px] opacity-60">(按評價由高至低排序)</span>
+            <span>價位排序</span>
+            <span className="text-[8px] opacity-60">(顯示所有結果)</span>
           </span>
           <div className="flex gap-1">
-            {[0, 4.0, 4.5].map((rate) => (
-              <button
-                key={rate}
-                onClick={() => setMinRating(rate)}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                  minRating === rate 
-                    ? 'bg-white text-orange-600 shadow-sm ring-1 ring-orange-100' 
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                {rate === 0 ? '全部' : `${rate}★ ↑`}
-              </button>
-            ))}
+            <button
+              onClick={() => setSortOrder('ASC')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                sortOrder === 'ASC' 
+                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-orange-100' 
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              $ → $$$
+            </button>
+            <button
+              onClick={() => setSortOrder('DESC')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                sortOrder === 'DESC' 
+                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-orange-100' 
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              $$$ → $
+            </button>
           </div>
         </div>
 
@@ -130,8 +142,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
             ) : (
               <div className="py-20 text-center flex flex-col items-center gap-3">
                 <span className="text-4xl opacity-20">🏜️</span>
-                <p className="text-sm font-bold text-slate-300">此評分範圍內沒有找到餐廳</p>
-                <button onClick={() => setMinRating(0)} className="text-xs font-black text-orange-500 underline">顯示全部</button>
+                <p className="text-sm font-bold text-slate-300">目前找不到相關餐廳</p>
               </div>
             )}
           </div>

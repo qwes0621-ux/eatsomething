@@ -4,6 +4,7 @@ import { Screen, Category } from './types';
 import { CATEGORIES } from './constants';
 import Roulette from './components/Roulette';
 import ResultCard from './components/ResultCard';
+import LocationGuide from './components/LocationGuide';
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('HOME');
@@ -64,24 +65,27 @@ const App: React.FC = () => {
               {/* 地址輸入區塊 */}
               <div className="w-full max-w-sm mb-8">
                 {isEditing ? (
-                  <form onSubmit={saveAddress} className="bg-white p-6 rounded-[2.5rem] shadow-xl border-2 border-orange-100 animate-in zoom-in duration-300">
-                    <label className="block text-sm font-black text-gray-700 mb-3 ml-2">📍 您在哪個位置附近？</label>
-                    <input 
-                      autoFocus
-                      type="text"
-                      value={tempAddress}
-                      onChange={(e) => setTempAddress(e.target.value)}
-                      placeholder="例如：民生東路三段、台北 101..."
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-400 focus:bg-white outline-none transition-all shadow-inner"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!tempAddress.trim()}
-                      className="w-full mt-4 bg-orange-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 disabled:bg-slate-300 transition-all"
-                    >
-                      設定位置
-                    </button>
-                  </form>
+                  <div className="flex flex-col gap-4">
+                    <form onSubmit={saveAddress} className="bg-white p-6 rounded-[2.5rem] shadow-xl border-2 border-orange-100 animate-in zoom-in duration-300">
+                      <label className="block text-sm font-black text-gray-700 mb-3 ml-2">📍 您在哪個位置附近？</label>
+                      <input 
+                        autoFocus
+                        type="text"
+                        value={tempAddress}
+                        onChange={(e) => setTempAddress(e.target.value)}
+                        placeholder="打上店家、景點或路段名稱..."
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-400 focus:bg-white outline-none transition-all shadow-inner"
+                      />
+                      <button 
+                        type="submit"
+                        disabled={!tempAddress.trim()}
+                        className="w-full mt-4 bg-orange-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 disabled:bg-slate-300 transition-all"
+                      >
+                        確定地點
+                      </button>
+                    </form>
+                    <LocationGuide />
+                  </div>
                 ) : (
                   <div className="bg-white px-6 py-4 rounded-full shadow-md border border-slate-100 flex items-center justify-between group">
                     <div className="flex items-center gap-3 overflow-hidden">
@@ -105,7 +109,7 @@ const App: React.FC = () => {
                 onSpinEnd={handleSpinEnd} 
                 isSpinning={isSpinning} 
                 setIsSpinning={setIsSpinning}
-                userLocation={manualAddress ? { lat: 0, lng: 0 } : null} // 只要有地址就解鎖
+                userLocation={manualAddress ? { lat: 0, lng: 0 } : null} 
                 onRequestLocation={() => setIsEditing(true)}
                 isRequestingLocation={false}
               />
@@ -121,7 +125,7 @@ const App: React.FC = () => {
           {currentScreen === 'RESULT' && selectedCategory && (
             <ResultCard 
               category={selectedCategory} 
-              userLocation={null} // 使用 manualAddress
+              userLocation={null} 
               isFavorited={favorites.includes(selectedCategory.id)}
               onToggleFavorite={() => toggleFavorite(selectedCategory.id)}
               onSpinAgain={() => {
