@@ -30,7 +30,6 @@ const ResultCard: React.FC<ResultCardProps> = ({
   const manualAddress = localStorage.getItem('lunchgo_address') || '';
   const [restaurants, setRestaurants] = useState<RestaurantInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC'); // ASC: 低到高, DESC: 高到低
 
   useEffect(() => {
     const loadData = async () => {
@@ -42,18 +41,10 @@ const ResultCard: React.FC<ResultCardProps> = ({
     loadData();
   }, [category.name, manualAddress]);
 
-  // 按「價位」進行排序，並限制為前 6 間
+  // 直接取前 6 間，不進行額外排序
   const processedRestaurants = useMemo(() => {
-    return [...restaurants]
-      .sort((a, b) => {
-        if (sortOrder === 'ASC') {
-          return a.priceLevel - b.priceLevel;
-        } else {
-          return b.priceLevel - a.priceLevel;
-        }
-      })
-      .slice(0, 6);
-  }, [restaurants, sortOrder]);
+    return restaurants.slice(0, 6);
+  }, [restaurants]);
 
   const handleOpenMap = (resName: string, resAddress: string) => {
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${resName} ${resAddress}`)}`;
@@ -80,34 +71,11 @@ const ResultCard: React.FC<ResultCardProps> = ({
       </div>
 
       <div className="p-6">
-        {/* 排序控制項 */}
-        <div className="flex items-center justify-between mb-6 bg-slate-50 p-1.5 rounded-2xl">
-          <span className="text-[10px] font-black text-slate-400 ml-3 uppercase flex flex-col">
-            <span>價位排序</span>
-            <span className="text-[8px] opacity-60">(精選 6 間好店)</span>
+        {/* 頂部資訊列 */}
+        <div className="flex items-center justify-between mb-4 px-2">
+          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+            ✨ 為您精選周邊好店
           </span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setSortOrder('ASC')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                sortOrder === 'ASC' 
-                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-orange-100' 
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              $ → $$$
-            </button>
-            <button
-              onClick={() => setSortOrder('DESC')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                sortOrder === 'DESC' 
-                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-orange-100' 
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              $$$ → $
-            </button>
-          </div>
         </div>
 
         {isLoading ? (
