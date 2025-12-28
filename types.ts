@@ -25,4 +25,4 @@ export interface Review {
   rating: number;
 }
 
-export type Screen = 'HOME' | 'RESULT' | 'RANKING' | 'AI_SUGGEST';
+export type Screen = 'HOME' | 'RESULT' | 'RANKING';

@@ -5,19 +5,15 @@ import { CATEGORIES } from './constants';
 import Roulette from './components/Roulette';
 import ResultCard from './components/ResultCard';
 import LocationGuide from './components/LocationGuide';
-import { getAIRecommendation, getNearbyRecommendation } from './geminiService';
+import { getAreaNameFromCoords } from './geminiService';
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('HOME');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
-  const [aiRec, setAiRec] = useState<any>(null);
-  const [isLoadingAi, setIsLoadingAi] = useState(false);
-  const [nearbyData, setNearbyData] = useState<any>(null);
-  const [isLoadingNearby, setIsLoadingNearby] = useState(false);
   
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -41,22 +37,27 @@ const App: React.FC = () => {
     setLocationError(null);
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
+      async (position) => {
+        const coords = {
           lat: position.coords.latitude,
           lng: position.coords.longitude
-        });
+        };
+        setUserLocation(coords);
         setLocationError(null);
         setIsRequestingLocation(false);
         setShowGuide(false);
+
+        // 取得位置後，調用 AI 解碼區域名稱
+        const area = await getAreaNameFromCoords(coords.lat, coords.lng);
+        setUserAddress(area);
       },
       (error) => {
         console.error("Geolocation error:", error);
         setIsRequestingLocation(false);
         if (error.code === error.PERMISSION_DENIED) {
-          setLocationError("定位授權已拒絕。請開啟定位以便尋找 5km 內的美味餐廳。");
+          setLocationError("定位授權已拒絕。請開啟定位服務以解鎖轉盤。");
         } else {
-          setLocationError("定位取得失敗，請檢查網路或 GPS 訊號後重試。");
+          setLocationError("定位取得失敗，請檢查設備設定。");
         }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -77,30 +78,9 @@ const App: React.FC = () => {
     );
   };
 
-  const handleSpinEnd = async (result: Category) => {
+  const handleSpinEnd = (result: Category) => {
     setSelectedCategory(result);
-    setHistory(prev => [result.name, ...prev].slice(0, 10));
     setCurrentScreen('RESULT');
-    
-    if (userLocation) {
-      setIsLoadingNearby(true);
-      try {
-        const data = await getNearbyRecommendation(result.name, userLocation.lat, userLocation.lng);
-        setNearbyData(data);
-      } catch (e) {
-        console.error("Recommendation fetch error:", e);
-      } finally {
-        setIsLoadingNearby(false);
-      }
-    }
-  };
-
-  const fetchAiRec = async () => {
-    setIsLoadingAi(true);
-    setCurrentScreen('AI_SUGGEST');
-    const rec = await getAIRecommendation(history);
-    setAiRec(rec);
-    setIsLoadingAi(false);
   };
 
   return (
@@ -117,11 +97,23 @@ const App: React.FC = () => {
             <div className="flex flex-col items-center w-full animate-in fade-in slide-in-from-top-4 duration-500">
               <div className="text-center mb-8 px-6">
                 <h2 className="text-xl font-black text-gray-800">中午時光，就該好好慰勞自己</h2>
-                <p className="text-gray-500 text-sm mt-1">點擊下方按鈕，讓命運為你決定！</p>
+                
+                {userLocation && userAddress ? (
+                  <div className="mt-3 inline-flex flex-col items-center gap-1">
+                    <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm animate-in zoom-in">
+                      <span className="text-xs">📍</span>
+                      <span className="text-[11px] font-black">目前定位：{userAddress}</span>
+                      <button onClick={requestLocation} className="ml-1 text-[10px] bg-blue-100 p-1 rounded-md hover:bg-blue-200 transition-colors">🔄</button>
+                    </div>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">✨ 已鎖定方圓 3KM 精準搜尋</p>
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm mt-1">請先允許定位權限，解鎖今日午餐命運！</p>
+                )}
                 
                 {locationError && (
                   <div className="mt-4 p-4 bg-red-50 text-red-700 text-xs rounded-3xl border border-red-100 flex flex-col items-center gap-3">
-                    <div className="flex items-center gap-2 font-bold leading-relaxed">
+                    <div className="flex items-center gap-2 font-bold leading-relaxed text-center">
                       <span>📍</span> {locationError}
                     </div>
                     <div className="flex gap-2">
@@ -147,13 +139,11 @@ const App: React.FC = () => {
           {currentScreen === 'RESULT' && selectedCategory && (
             <ResultCard 
               category={selectedCategory} 
-              aiData={nearbyData}
-              isLoading={isLoadingNearby}
+              userLocation={userLocation}
               isFavorited={favorites.includes(selectedCategory.id)}
               onToggleFavorite={() => toggleFavorite(selectedCategory.id)}
               onSpinAgain={() => {
                 setSelectedCategory(null);
-                setNearbyData(null);
                 setCurrentScreen('HOME');
               }} 
             />
@@ -161,7 +151,7 @@ const App: React.FC = () => {
 
           {currentScreen === 'RANKING' && (
             <div className="w-full animate-in slide-in-from-bottom-8 duration-500 space-y-4">
-              <h2 className="text-xl font-black text-gray-800 mb-2">類別總覽</h2>
+              <h2 className="text-xl font-black text-gray-800 mb-2 px-2">料理種類</h2>
               {CATEGORIES.map((cat) => (
                 <div key={cat.id} className="bg-white p-5 rounded-3xl shadow-sm border border-transparent flex items-center justify-between group">
                   <div className="flex items-center gap-4">
@@ -178,48 +168,15 @@ const App: React.FC = () => {
               ))}
             </div>
           )}
-
-          {currentScreen === 'AI_SUGGEST' && (
-            <div className="w-full text-center space-y-6">
-              <h2 className="text-xl font-black text-gray-800">LunchGo! AI 專屬推薦</h2>
-              {isLoadingAi ? (
-                <div className="flex flex-col items-center py-20 space-y-4">
-                  <div className="w-12 h-12 border-4 border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
-                  <p className="text-gray-400 text-sm font-bold animate-pulse">正在為您精選最佳組合...</p>
-                </div>
-              ) : aiRec ? (
-                <div className="bg-white p-8 rounded-[40px] shadow-xl border border-blue-50">
-                  <div className="w-20 h-20 bg-blue-600 text-white flex items-center justify-center rounded-3xl mx-auto mb-6 text-3xl shadow-lg">🤖</div>
-                  <h3 className="text-2xl font-black text-blue-700 mb-2">{aiRec.recommendedCategory}</h3>
-                  <div className="bg-blue-50/50 p-4 rounded-2xl mb-6">
-                    <p className="text-gray-600 text-sm italic font-medium">「{aiRec.reason}」</p>
-                  </div>
-                  <div className="space-y-3">
-                    {aiRec.suggestions.map((s: string, i: number) => (
-                      <div key={i} className="py-3 px-5 bg-white border border-blue-100 text-blue-700 rounded-2xl font-bold flex items-center">
-                        <span className="mr-3 text-lg">🍴</span>{s}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="py-20 text-gray-400">無法生成推薦，請稍後再試。</p>
-              )}
-              <button onClick={() => setCurrentScreen('HOME')} className="px-8 py-3 bg-gray-100 text-gray-500 font-black rounded-full text-sm">返回首頁</button>
-            </div>
-          )}
         </div>
       </main>
 
       <nav className="flex-none bg-white border-t border-gray-100 flex justify-around py-3 px-2 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
-        <button onClick={() => setCurrentScreen('HOME')} className={`flex flex-col items-center gap-1 px-6 py-1 rounded-2xl ${currentScreen === 'HOME' || currentScreen === 'RESULT' ? 'text-orange-500 bg-orange-50' : 'text-gray-300'}`}>
-          <span className="text-2xl">🎡</span><span className="text-[10px] font-black">轉盤</span>
+        <button onClick={() => setCurrentScreen('HOME')} className={`flex flex-col items-center gap-1 px-10 py-1 rounded-2xl ${currentScreen === 'HOME' || currentScreen === 'RESULT' ? 'text-orange-500 bg-orange-50' : 'text-gray-300'}`}>
+          <span className="text-2xl">🎡</span><span className="text-[10px] font-black">抽籤轉盤</span>
         </button>
-        <button onClick={() => setCurrentScreen('RANKING')} className={`flex flex-col items-center gap-1 px-6 py-1 rounded-2xl ${currentScreen === 'RANKING' ? 'text-orange-500 bg-orange-50' : 'text-gray-300'}`}>
-          <span className="text-2xl">📋</span><span className="text-[10px] font-black">類別</span>
-        </button>
-        <button onClick={fetchAiRec} className={`flex flex-col items-center gap-1 px-6 py-1 rounded-2xl ${currentScreen === 'AI_SUGGEST' ? 'text-orange-500 bg-orange-50' : 'text-gray-300'}`}>
-          <span className="text-2xl">🧠</span><span className="text-[10px] font-black">AI 建議</span>
+        <button onClick={() => setCurrentScreen('RANKING')} className={`flex flex-col items-center gap-1 px-10 py-1 rounded-2xl ${currentScreen === 'RANKING' ? 'text-orange-500 bg-orange-50' : 'text-gray-300'}`}>
+          <span className="text-2xl">📋</span><span className="text-[10px] font-black">全部種類</span>
         </button>
       </nav>
     </div>
