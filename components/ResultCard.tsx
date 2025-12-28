@@ -42,19 +42,26 @@ const ResultCard: React.FC<ResultCardProps> = ({
     loadData();
   }, [category.name, manualAddress]);
 
-  // 按「價位」進行排序，顯示所有餐廳
+  // 按「價位」進行排序，並限制為前 6 間
   const processedRestaurants = useMemo(() => {
-    return [...restaurants].sort((a, b) => {
-      if (sortOrder === 'ASC') {
-        return a.priceLevel - b.priceLevel;
-      } else {
-        return b.priceLevel - a.priceLevel;
-      }
-    });
+    return [...restaurants]
+      .sort((a, b) => {
+        if (sortOrder === 'ASC') {
+          return a.priceLevel - b.priceLevel;
+        } else {
+          return b.priceLevel - a.priceLevel;
+        }
+      })
+      .slice(0, 6);
   }, [restaurants, sortOrder]);
 
   const handleOpenMap = (resName: string, resAddress: string) => {
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${resName} ${resAddress}`)}`;
+    window.open(url, '_blank');
+  };
+
+  const handleSearchMore = () => {
+    const url = `https://www.google.com/maps/search/${encodeURIComponent(`${category.name} 餐廳 ${manualAddress}`)}`;
     window.open(url, '_blank');
   };
 
@@ -77,7 +84,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
         <div className="flex items-center justify-between mb-6 bg-slate-50 p-1.5 rounded-2xl">
           <span className="text-[10px] font-black text-slate-400 ml-3 uppercase flex flex-col">
             <span>價位排序</span>
-            <span className="text-[8px] opacity-60">(顯示所有結果)</span>
+            <span className="text-[8px] opacity-60">(精選 6 間好店)</span>
           </span>
           <div className="flex gap-1">
             <button
@@ -109,40 +116,56 @@ const ResultCard: React.FC<ResultCardProps> = ({
             <p className="text-sm font-black text-slate-400">正在搜尋周邊精選好店...</p>
           </div>
         ) : (
-          <div className="space-y-3 min-h-[300px]">
+          <div className="space-y-3">
             {processedRestaurants.length > 0 ? (
-              processedRestaurants.map((res, i) => (
-                <div 
-                  key={i} 
-                  onClick={() => handleOpenMap(res.name, res.address)}
-                  className="group bg-white border border-slate-100 rounded-2xl p-4 hover:border-orange-200 hover:shadow-md transition-all cursor-pointer active:scale-[0.98] animate-in slide-in-from-bottom-2"
-                  style={{ animationDelay: `${i * 50}ms` }}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-black text-slate-800 group-hover:text-orange-600">{res.name}</h4>
-                        <span className="text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">
-                          {res.priceRange}
-                        </span>
+              <>
+                {processedRestaurants.map((res, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => handleOpenMap(res.name, res.address)}
+                    className="group bg-white border border-slate-100 rounded-2xl p-4 hover:border-orange-200 hover:shadow-md transition-all cursor-pointer active:scale-[0.98] animate-in slide-in-from-bottom-2"
+                    style={{ animationDelay: `${i * 50}ms` }}
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-black text-slate-800 group-hover:text-orange-600">{res.name}</h4>
+                          <span className="text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                            {res.priceRange}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
+                          <span>📍</span> {res.distance} • {res.address}
+                        </p>
                       </div>
-                      <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
-                        <span>📍</span> {res.distance} • {res.address}
-                      </p>
+                      <span className="bg-orange-500 text-white px-2 py-1 rounded-lg text-[11px] font-black whitespace-nowrap shadow-sm">
+                        ★ {res.rating}
+                      </span>
                     </div>
-                    <span className="bg-orange-500 text-white px-2 py-1 rounded-lg text-[11px] font-black whitespace-nowrap shadow-sm">
-                      ★ {res.rating}
-                    </span>
+                    <p className="text-[11px] text-slate-500 mt-2 italic bg-slate-50 px-3 py-2 rounded-xl border border-slate-50">
+                      “{res.review}”
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-2 italic bg-slate-50 px-3 py-2 rounded-xl border border-slate-50">
-                    “{res.review}”
-                  </p>
-                </div>
-              ))
+                ))}
+                
+                {/* 打開 Google 地圖按鈕 */}
+                <button 
+                  onClick={handleSearchMore}
+                  className="w-full mt-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[12px] font-black text-slate-500 flex items-center justify-center gap-2 hover:bg-white hover:border-orange-300 hover:text-orange-600 transition-all active:scale-[0.98]"
+                >
+                  🗺️ 打開 Google 地圖找尋其它店家
+                </button>
+              </>
             ) : (
               <div className="py-20 text-center flex flex-col items-center gap-3">
                 <span className="text-4xl opacity-20">🏜️</span>
                 <p className="text-sm font-bold text-slate-300">目前找不到相關餐廳</p>
+                <button 
+                  onClick={handleSearchMore}
+                  className="mt-2 text-xs font-black text-orange-500 underline"
+                >
+                  直接到 Google 地圖搜尋
+                </button>
               </div>
             )}
           </div>
