@@ -5,7 +5,7 @@ import { CATEGORIES } from './constants';
 import Roulette from './components/Roulette';
 import ResultCard from './components/ResultCard';
 import LocationGuide from './components/LocationGuide';
-import { getAreaNameFromCoords } from './geminiService';
+import { getAreaNameFromCoords, getCoordsFromAddress } from './geminiService';
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('HOME');
@@ -17,6 +17,12 @@ const App: React.FC = () => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+
+  // 手動位置與確認狀態
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [manualAddress, setManualAddress] = useState('');
+  const [isUpdatingManual, setIsUpdatingManual] = useState(false);
+  const [isLocationConfirmed, setIsLocationConfirmed] = useState(false);
 
   const [favorites, setFavorites] = useState<string[]>(() => {
     const saved = localStorage.getItem('lunchgo_favorites');
@@ -35,6 +41,7 @@ const App: React.FC = () => {
 
     setIsRequestingLocation(true);
     setLocationError(null);
+    setIsLocationConfirmed(false);
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -47,7 +54,6 @@ const App: React.FC = () => {
         setIsRequestingLocation(false);
         setShowGuide(false);
 
-        // 取得位置後，調用 AI 解碼區域名稱
         const area = await getAreaNameFromCoords(coords.lat, coords.lng);
         setUserAddress(area);
       },
@@ -55,20 +61,39 @@ const App: React.FC = () => {
         console.error("Geolocation error:", error);
         setIsRequestingLocation(false);
         if (error.code === error.PERMISSION_DENIED) {
-          setLocationError("定位授權已拒絕。請開啟定位服務以解鎖轉盤。");
+          setLocationError("定位授權已拒絕。您可以選擇手動輸入位置。");
         } else {
-          setLocationError("定位取得失敗，請檢查設備設定。");
+          setLocationError("定位取得失敗，請手動輸入位置。");
         }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }, []);
 
+  const handleManualAddressSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualAddress.trim()) return;
+
+    setIsUpdatingManual(true);
+    const result = await getCoordsFromAddress(manualAddress);
+    
+    if (result && result.lat && result.lng) {
+      setUserLocation({ lat: result.lat, lng: result.lng });
+      setUserAddress(result.area);
+      setIsLocationConfirmed(true);
+      setIsEditingLocation(false);
+      setManualAddress('');
+    } else {
+      alert("抱歉，AI 找不到這個地點，請輸入更具體的地址或地標。");
+    }
+    setIsUpdatingManual(false);
+  };
+
   useEffect(() => {
-    if (currentScreen === 'HOME' && !userLocation) {
+    if (currentScreen === 'HOME' && !userLocation && !isLocationConfirmed && !isEditingLocation) {
       requestLocation();
     }
-  }, [currentScreen, userLocation, requestLocation]);
+  }, [currentScreen, userLocation, requestLocation, isLocationConfirmed, isEditingLocation]);
 
   const toggleFavorite = (categoryId: string) => {
     setFavorites(prev => 
@@ -95,30 +120,93 @@ const App: React.FC = () => {
           
           {currentScreen === 'HOME' && (
             <div className="flex flex-col items-center w-full animate-in fade-in slide-in-from-top-4 duration-500">
-              <div className="text-center mb-8 px-6">
+              <div className="text-center mb-8 px-6 w-full">
                 <h2 className="text-xl font-black text-gray-800">中午時光，就該好好慰勞自己</h2>
                 
-                {userLocation && userAddress ? (
-                  <div className="mt-3 inline-flex flex-col items-center gap-1">
-                    <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm animate-in zoom-in">
-                      <span className="text-xs">📍</span>
-                      <span className="text-[11px] font-black">目前定位：{userAddress}</span>
-                      <button onClick={requestLocation} className="ml-1 text-[10px] bg-blue-100 p-1 rounded-md hover:bg-blue-200 transition-colors">🔄</button>
-                    </div>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">✨ 已鎖定方圓 3KM 精準搜尋</p>
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-sm mt-1">請先允許定位權限，解鎖今日午餐命運！</p>
-                )}
+                <div className="mt-5 flex flex-col items-center w-full">
+                  {!isEditingLocation ? (
+                    userLocation && userAddress ? (
+                      <div className="w-full flex flex-col items-center gap-2 animate-in zoom-in duration-300">
+                        <div className={`w-full max-w-xs p-4 rounded-[2rem] border-2 transition-all flex flex-col gap-3 ${isLocationConfirmed ? 'bg-orange-50 border-orange-200' : 'bg-white border-blue-100 shadow-xl shadow-blue-50'}`}>
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{isLocationConfirmed ? '🎯' : '📍'}</span>
+                            <div className="text-left">
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{isLocationConfirmed ? '搜尋中心已確認' : '偵測到位置'}</p>
+                              <p className="text-sm font-black text-gray-800 leading-tight">{userAddress}</p>
+                            </div>
+                          </div>
+                          
+                          {!isLocationConfirmed ? (
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => setIsLocationConfirmed(true)}
+                                className="flex-1 bg-blue-600 text-white text-xs font-black py-2.5 rounded-xl shadow-md active:scale-95 transition-all"
+                              >✅ 確認位置</button>
+                              <button 
+                                onClick={() => setIsEditingLocation(true)}
+                                className="flex-1 bg-slate-100 text-slate-500 text-xs font-black py-2.5 rounded-xl active:scale-95 transition-all"
+                              >✏️ 修改</button>
+                            </div>
+                          ) : (
+                            <button 
+                              onClick={() => setIsLocationConfirmed(false)}
+                              className="text-[10px] font-black text-orange-500 underline text-right"
+                            >更換搜尋地點</button>
+                          )}
+                        </div>
+                        {isLocationConfirmed && (
+                          <p className="text-[10px] text-orange-400 font-black animate-pulse mt-2">✨ 已鎖定 3KM 範圍，請點擊轉盤開始！</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3">
+                        <p className="text-gray-500 text-sm mt-1">{isRequestingLocation ? '📍 定位偵測中...' : '尚未取得定位'}</p>
+                        <button 
+                          onClick={() => setIsEditingLocation(true)}
+                          className="px-6 py-2.5 bg-indigo-50 text-indigo-600 text-xs font-black rounded-full border border-indigo-100 shadow-sm active:scale-95"
+                        >⌨️ 手動輸入地址</button>
+                      </div>
+                    )
+                  ) : (
+                    <form onSubmit={handleManualAddressSubmit} className="w-full max-w-xs animate-in slide-in-from-top-2 duration-300">
+                      <div className="bg-white p-5 rounded-[2rem] border-2 border-indigo-100 shadow-2xl shadow-indigo-50 flex flex-col gap-4">
+                        <h4 className="text-sm font-black text-indigo-600">手動輸入搜尋地點</h4>
+                        <input
+                          autoFocus
+                          type="text"
+                          value={manualAddress}
+                          onChange={(e) => setManualAddress(e.target.value)}
+                          placeholder="例如：捷運中山站、台北101..."
+                          disabled={isUpdatingManual}
+                          className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm font-bold focus:border-indigo-300 focus:bg-white outline-none transition-all"
+                        />
+                        <div className="flex gap-2">
+                          <button 
+                            type="submit" 
+                            disabled={isUpdatingManual || !manualAddress.trim()}
+                            className="flex-1 bg-indigo-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95 disabled:bg-slate-300"
+                          >
+                            {isUpdatingManual ? '🔍 解析中...' : '✅ 確定地點'}
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => setIsEditingLocation(false)}
+                            className="px-4 py-3 bg-white border border-slate-200 text-slate-400 text-xs font-black rounded-xl active:scale-95"
+                          >取消</button>
+                        </div>
+                      </div>
+                    </form>
+                  )}
+                </div>
                 
-                {locationError && (
-                  <div className="mt-4 p-4 bg-red-50 text-red-700 text-xs rounded-3xl border border-red-100 flex flex-col items-center gap-3">
-                    <div className="flex items-center gap-2 font-bold leading-relaxed text-center">
-                      <span>📍</span> {locationError}
+                {locationError && !isLocationConfirmed && !isEditingLocation && (
+                  <div className="mt-6 p-4 bg-red-50 text-red-700 text-[11px] rounded-3xl border border-red-100 flex flex-col items-center gap-3 animate-in fade-in">
+                    <div className="flex items-center gap-2 font-black leading-relaxed text-center">
+                      <span>⚠️</span> {locationError}
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={requestLocation} className="px-4 py-2 bg-red-600 text-white font-black rounded-full shadow-md active:scale-95 transition">重新授權</button>
-                      <button onClick={() => setShowGuide(!showGuide)} className="px-4 py-2 bg-white text-gray-600 border border-gray-200 font-bold rounded-full shadow-sm active:scale-95 transition">{showGuide ? "隱藏教學" : "如何開啟？"}</button>
+                      <button onClick={requestLocation} className="px-5 py-2 bg-red-600 text-white font-black rounded-xl shadow-md active:scale-95">重新偵測</button>
+                      <button onClick={() => setShowGuide(!showGuide)} className="px-5 py-2 bg-white text-gray-500 border border-gray-200 font-bold rounded-xl shadow-sm">{showGuide ? "隱藏教學" : "教學"}</button>
                     </div>
                   </div>
                 )}
@@ -129,9 +217,9 @@ const App: React.FC = () => {
                 onSpinEnd={handleSpinEnd} 
                 isSpinning={isSpinning} 
                 setIsSpinning={setIsSpinning}
-                userLocation={userLocation}
-                onRequestLocation={requestLocation}
-                isRequestingLocation={isRequestingLocation}
+                userLocation={isLocationConfirmed ? userLocation : null}
+                onRequestLocation={() => setIsEditingLocation(true)}
+                isRequestingLocation={isRequestingLocation || isUpdatingManual}
               />
             </div>
           )}
@@ -172,7 +260,10 @@ const App: React.FC = () => {
       </main>
 
       <nav className="flex-none bg-white border-t border-gray-100 flex justify-around py-3 px-2 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
-        <button onClick={() => setCurrentScreen('HOME')} className={`flex flex-col items-center gap-1 px-10 py-1 rounded-2xl ${currentScreen === 'HOME' || currentScreen === 'RESULT' ? 'text-orange-500 bg-orange-50' : 'text-gray-300'}`}>
+        <button onClick={() => {
+          setIsLocationConfirmed(false);
+          setCurrentScreen('HOME');
+        }} className={`flex flex-col items-center gap-1 px-10 py-1 rounded-2xl ${currentScreen === 'HOME' || currentScreen === 'RESULT' ? 'text-orange-500 bg-orange-50' : 'text-gray-300'}`}>
           <span className="text-2xl">🎡</span><span className="text-[10px] font-black">抽籤轉盤</span>
         </button>
         <button onClick={() => setCurrentScreen('RANKING')} className={`flex flex-col items-center gap-1 px-10 py-1 rounded-2xl ${currentScreen === 'RANKING' ? 'text-orange-500 bg-orange-50' : 'text-gray-300'}`}>

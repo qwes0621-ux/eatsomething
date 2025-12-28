@@ -26,6 +26,46 @@ export const getAreaNameFromCoords = async (lat: number, lng: number) => {
 };
 
 /**
+ * 正向地理編碼：將地址文字轉為座標與標準化地名
+ */
+export const getCoordsFromAddress = async (address: string) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  try {
+    const prompt = `請解析以下地址或地標：『${address}』。
+    請回傳該地點的經緯度座標與精簡的區域名稱。
+    
+    【回傳格式範例】：
+    {
+      "lat": 25.0339,
+      "lng": 121.5644,
+      "area": "台北市信義區"
+    }`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            lat: { type: Type.NUMBER },
+            lng: { type: Type.NUMBER },
+            area: { type: Type.STRING }
+          },
+          required: ["lat", "lng", "area"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "{}");
+  } catch (error) {
+    console.error("Geocoding Error:", error);
+    return null;
+  }
+};
+
+/**
  * 根據分類與真實座標搜尋 3km 內的餐廳
  */
 export const fetchNearbyRestaurants = async (categoryName: string, lat: number, lng: number) => {
